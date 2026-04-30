@@ -154,3 +154,46 @@ def test_prompt_does_not_contradict_user_aspect_ratio() -> None:
     assert "9:16" in body
     # The contradictory hardcoded fragment must NOT be present.
     assert "16:9 aspect ratio" not in body
+
+
+def test_vary_themes_produces_distinct_style_motion_per_prompt() -> None:
+    """Each prompt in a varied batch must have a unique (style, motion) pair."""
+    gen = PromptGenerator()
+    n = 5
+    results = gen.generate_batch(_basic_config(count=n, vary_themes=True, seed=7))
+    pairs = [
+        (r.config_snapshot["style"], r.config_snapshot["motion"]) for r in results
+    ]
+    assert len(set(pairs)) == n, f"expected {n} unique themes, got {pairs}"
+
+
+def test_vary_themes_first_variant_honours_user_pick() -> None:
+    """The first prompt always uses the style/motion the user explicitly picked."""
+    gen = PromptGenerator()
+    cfg = _basic_config(
+        count=4, vary_themes=True, style="Liquid", motion="Liquid Wave", seed=11,
+    )
+    results = gen.generate_batch(cfg)
+    first = results[0].config_snapshot
+    assert (first["style"], first["motion"]) == ("Liquid", "Liquid Wave")
+
+
+def test_vary_themes_disabled_keeps_same_theme() -> None:
+    """With vary_themes off, every variant reuses the user-picked theme."""
+    gen = PromptGenerator()
+    cfg = _basic_config(
+        count=5, vary_themes=False, style="Neon", motion="Pulse / Beat", seed=3,
+    )
+    results = gen.generate_batch(cfg)
+    pairs = {(r.config_snapshot["style"], r.config_snapshot["motion"]) for r in results}
+    assert pairs == {("Neon", "Pulse / Beat")}
+
+
+def test_vary_themes_count_one_is_not_forced_unique() -> None:
+    """A single prompt batch is always the user's own pick, vary or not."""
+    gen = PromptGenerator()
+    r = gen.generate_batch(
+        _basic_config(count=1, vary_themes=True, style="3D", motion="Slow Rotation")
+    )[0]
+    assert r.config_snapshot["style"] == "3D"
+    assert r.config_snapshot["motion"] == "Slow Rotation"

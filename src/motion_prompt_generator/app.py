@@ -137,6 +137,13 @@ class App(ctk.CTk):
             variable=self.stock_safe_var,
         ).grid(row=25, column=0, sticky="w", pady=(0, PADY))
 
+        self.vary_themes_var = tk.BooleanVar(value=self._cfg.vary_themes)
+        ctk.CTkSwitch(
+            scroll,
+            text="Vary themes across batch (each prompt = different style + motion)",
+            variable=self.vary_themes_var,
+        ).grid(row=26, column=0, sticky="w", pady=(0, PADY))
+
         # --- Action buttons -----------------------------------------------------
         actions = ctk.CTkFrame(panel, fg_color="transparent")
         actions.grid(row=2, column=0, padx=PADX, pady=(0, PADX), sticky="ew")
@@ -257,6 +264,7 @@ class App(ctk.CTk):
         self._cfg.last_aspect_ratio = prompt_cfg.aspect_ratio
         self._cfg.last_extra_modifiers = prompt_cfg.extra_modifiers
         self._cfg.stock_safe = prompt_cfg.stock_safe
+        self._cfg.vary_themes = prompt_cfg.vary_themes
         cfg_store.save(self._cfg)
 
     # ----- Actions ---------------------------------------------------------------
@@ -276,6 +284,7 @@ class App(ctk.CTk):
             extra_modifiers=self.extra_entry.get().strip(),
             count=int(self.count_var.get()),
             stock_safe=self.stock_safe_var.get(),
+            vary_themes=self.vary_themes_var.get(),
         )
 
     def on_generate(self) -> None:

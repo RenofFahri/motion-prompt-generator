@@ -31,6 +31,7 @@ class AppConfig:
     last_aspect_ratio: str = "16:9"
     last_extra_modifiers: str = ""
     stock_safe: bool = True
+    vary_themes: bool = True
     appearance_mode: str = "dark"  # "dark" / "light" / "system"
     extras: dict = field(default_factory=dict)
 

@@ -34,6 +34,7 @@ class PromptConfig:
     count: int = 5
     seed: int | None = None
     stock_safe: bool = True
+    vary_themes: bool = True
 
 
 @dataclass
@@ -105,10 +106,37 @@ class PromptGenerator:
         if config.seed is not None:
             self._rng.seed(config.seed)
 
+        n = max(1, min(config.count, 50))
+        themes = self._pick_themes(config, n)
+
         results: list[PromptResult] = []
-        for _ in range(max(1, min(config.count, 50))):
-            results.append(self._generate_one(config))
+        for style, motion in themes:
+            variant = PromptConfig(**{**asdict(config), "style": style, "motion": motion})
+            results.append(self._generate_one(variant))
         return results
+
+    def _pick_themes(self, config: PromptConfig, n: int) -> list[tuple[str, str]]:
+        """Return ``n`` (style, motion) pairs.
+
+        When ``vary_themes`` is enabled and the batch has more than one entry,
+        every pair is unique — the user-selected style/motion is always the
+        first pair so their pick is honoured. Otherwise every entry reuses the
+        user's pick.
+        """
+        if not config.vary_themes or n <= 1:
+            return [(config.style, config.motion)] * n
+
+        styles = list(data.STYLES.keys())
+        motions = list(data.MOTIONS.keys())
+        pool: list[tuple[str, str]] = [
+            (s, m) for s in styles for m in motions if (s, m) != (config.style, config.motion)
+        ]
+        self._rng.shuffle(pool)
+
+        picked: list[tuple[str, str]] = [(config.style, config.motion)]
+        picked.extend(pool[: max(0, n - 1)])
+        # The pool has 15*15 - 1 = 224 entries, so for n <= 25 we always have enough.
+        return picked
 
     # -- Internals ----------------------------------------------------------------
 
@@ -155,8 +183,9 @@ class PromptGenerator:
         if profile["suffix"]:
             prompt = f"{prompt}. {profile['suffix']}"
 
-        metadata = self._build_metadata(config, style=config.style, motion=config.motion,
-                                        palette=palette, mood=mood)
+        metadata = self._build_metadata(
+            config, style=config.style, motion=config.motion, palette=palette, mood=mood
+        )
 
         return PromptResult(
             prompt=prompt,
