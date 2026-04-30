@@ -39,6 +39,25 @@ def test_resolve_dims_clamps_to_max_width() -> None:
     assert h < 480  # 16:9 means h < w
 
 
+def test_every_gui_aspect_ratio_is_mapped() -> None:
+    """Regression: GUI offered 4:5 but renderer mapped 4:3, so 4:5 silently
+    fell back to 16:9. Ensure every aspect ratio shown in the GUI is honoured."""
+    from motion_prompt_generator.motion_renderer import _ASPECT_TO_DIMS
+
+    # These are the exact strings the GUI puts in the Aspect Ratio dropdown
+    # (src/motion_prompt_generator/app.py line referencing CTkOptionMenu values).
+    gui_ratios = {"16:9", "9:16", "1:1", "4:5", "21:9"}
+    for ratio in gui_ratios:
+        assert ratio in _ASPECT_TO_DIMS, (
+            f"GUI offers aspect '{ratio}' but renderer has no mapping for it; "
+            f"output would silently fall back to 16:9.")
+    w, h = _resolve_dims("4:5", max_width=4000)
+    # 4:5 is portrait (taller than wide).
+    assert h > w
+    # Ratio sanity: width/height should be 4/5 = 0.8 (within rounding).
+    assert abs(w / h - 0.8) < 0.05
+
+
 def test_every_taxonomy_motion_maps_to_a_painter_kind() -> None:
     from motion_prompt_generator.data import MOTIONS
 

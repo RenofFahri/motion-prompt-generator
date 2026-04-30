@@ -233,16 +233,23 @@ class PromptGenerator:
 
     @staticmethod
     def _guess_category(config: PromptConfig, mood: str) -> str:
-        s = (config.subject + " " + config.style + " " + mood).lower()
-        if any(w in s for w in ("tech", "digital", "data", "circuit", "ai", "future", "cyber")):
+        # Word-boundary tokenisation so short keywords like "ai" don't
+        # match substrings inside "mountain", "rain", "train", etc.
+        words = set(re.findall(r"[a-z0-9]+", (config.subject + " " + config.style + " " + mood).lower()))
+
+        def has_any(*needles: str) -> bool:
+            return any(n in words for n in needles)
+
+        if has_any("tech", "technology", "digital", "data", "circuit", "ai", "future", "cyber"):
             return "Technology"
-        if any(w in s for w in ("nature", "tree", "ocean", "forest", "mountain", "flower", "leaf")):
+        if has_any("nature", "tree", "trees", "ocean", "forest", "mountain", "mountains",
+                   "flower", "flowers", "leaf", "leaves"):
             return "Nature"
-        if any(w in s for w in ("business", "corporate", "office", "finance", "money", "chart")):
+        if has_any("business", "corporate", "office", "finance", "money", "chart"):
             return "Business / Finance"
-        if any(w in s for w in ("food", "drink", "coffee", "cocktail", "fruit")):
+        if has_any("food", "drink", "coffee", "cocktail", "fruit"):
             return "Food and Drink"
-        if any(w in s for w in ("music", "beat", "audio", "sound", "wave")):
+        if has_any("music", "beat", "audio", "sound", "wave"):
             return "Music"
         if config.style.lower() in {"abstract", "liquid", "particle", "glitch", "holographic"}:
             return "Abstract"

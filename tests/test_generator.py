@@ -129,3 +129,28 @@ def test_category_inferred_from_subject() -> None:
     nature = gen.generate_batch(_basic_config(subject="forest leaf canopy", count=1))[0]
     assert tech.metadata.category == "Technology"
     assert nature.metadata.category == "Nature"
+
+
+def test_mountain_subject_is_nature_not_technology() -> None:
+    """Regression: 'mountain' contains the substring 'ai' but must NOT be Technology."""
+    gen = PromptGenerator()
+    for subject in ("mountain peak at sunrise", "rain on glass", "painting on wall",
+                    "train station platform"):
+        result = gen.generate_batch(_basic_config(subject=subject, count=1))[0]
+        assert result.metadata.category != "Technology", (
+            f"Subject '{subject}' wrongly tagged as Technology")
+    # And the canonical "mountain" subject should specifically resolve to Nature.
+    mountain = gen.generate_batch(_basic_config(subject="mountain peak at sunrise", count=1))[0]
+    assert mountain.metadata.category == "Nature"
+
+
+def test_prompt_does_not_contradict_user_aspect_ratio() -> None:
+    """Regression: STOCK_SAFE_MODIFIERS used to hardcode '16:9 aspect ratio'."""
+    gen = PromptGenerator()
+    result = gen.generate_batch(_basic_config(subject="vertical glow ring",
+                                              aspect_ratio="9:16", count=1))[0]
+    body = result.prompt.lower()
+    # The user-selected aspect ratio must be present.
+    assert "9:16" in body
+    # The contradictory hardcoded fragment must NOT be present.
+    assert "16:9 aspect ratio" not in body

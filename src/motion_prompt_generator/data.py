@@ -143,7 +143,6 @@ STOCK_SAFE_MODIFIERS: Final[list[str]] = [
     "no recognizable faces",
     "no brand references",
     "seamlessly loopable",
-    "16:9 aspect ratio",
     "centered composition with safe margins",
 ]
 
