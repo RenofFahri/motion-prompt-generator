@@ -15,7 +15,8 @@ Desktop GUI app (Python + CustomTkinter) untuk **generate prompt motion graphics
 - **Stock-safe modifiers**: otomatis tambahkan "no text, no logos, no faces, seamlessly loopable, 16:9" supaya video lolos review Adobe Stock & Shutterstock
 - **Stock metadata**: title, description, keywords (sampai 40+), kategori — **export langsung ke CSV format Adobe Stock & Shutterstock**
 - **Optional Gemini AI enhancement**: rewrite prompt jadi versi yang lebih kaya & beragam (butuh API key gratis dari Google AI Studio). Mendukung **Gemini 3 Flash**, **Gemini 3.1 Pro**, Gemini 2.5 series.
-- **Optional Veo video render**: tombol **Render Video (Veo)** memanggil Veo (`veo-3.1-generate-preview` / `veo-3.0-generate` / `veo-2.0-generate-001`) langsung dari app dan menyimpan MP4 ke folder pilihanmu. **Berbayar** — perkiraan $0.35–$0.50 per detik video.
+- **Render Video (Local) — gratis & offline**: tombol hijau **Render Video (Local)** menggunakan **renderer procedural built-in** (numpy + Pillow + ffmpeg) untuk menghasilkan MP4 motion-graphics langsung di mesinmu. **Tidak butuh API key, tidak ada biaya, tidak butuh internet.** Cocok untuk broadcast loops, abstract backgrounds, transitions — yang justru paling laku di Adobe Stock / Shutterstock.
+- **Optional Veo render (advanced, paid)**: tombol kecil **Render Video (Veo)** memanggil Google Veo (`veo-3.1-generate-preview` / `veo-3.0-generate` / `veo-2.0-generate-001`) untuk hasil photoreal. **Berbayar** — perkiraan $0.35–$0.50 per detik video.
 - **100% offline by default** — Gemini & Veo hanya dipakai kalau kamu enable
 - **Negative prompt** otomatis: anti low-quality, watermark, distorted faces, flicker
 - **Persistent settings**: form terakhir, API key, theme di-remember
@@ -35,11 +36,18 @@ Desktop GUI app (Python + CustomTkinter) untuk **generate prompt motion graphics
 git clone https://github.com/RenofFahri/motion-prompt-generator.git
 cd motion-prompt-generator
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[ai]"                              # ".[ai]" = include google-genai (Gemini + Veo SDK)
+pip install -e ".[ai,render]"                       # all features
 motion-prompt-generator                              # atau:  python -m motion_prompt_generator
 ```
 
-Tanpa AI enhancement (lebih ringan):
+**Optional extras:**
+
+| Extra      | Berisi                                                       | Kapan dibutuhkan                          |
+|------------|--------------------------------------------------------------|-------------------------------------------|
+| `[render]` | numpy, Pillow, imageio, imageio-ffmpeg                       | **Render Video (Local)** — free / offline |
+| `[ai]`     | google-genai                                                 | AI Enhance (Gemini) **dan** Render Veo    |
+
+Minimal install (cuma generate prompt + CSV, tanpa render & AI):
 
 ```bash
 pip install -e .
@@ -63,6 +71,8 @@ pip install -e .
    - `.txt` — semua prompt + metadata
    - `Adobe CSV` — siap import di Adobe Stock contributor portal
    - `Shutterstock CSV` — siap import di Shutterstock contributor portal
+9. **Render Video (Local)** — klik tombol hijau → pilih lokasi MP4 → app render abstract motion-graphics secara procedural (durasi & FPS sesuai form). Tidak butuh API key.
+10. (Opsional) **Render Video (Veo)** — untuk hasil photoreal AI; butuh Gemini API key + billing aktif.
 
 ### Alur produksi stock video
 
@@ -71,6 +81,22 @@ pip install -e .
 3. Pakai prompt-nya di Veo/Runway/Pika/Kling/Sora untuk render video MP4
 4. Rename file MP4 sesuai kolom `Filename` di CSV (atau edit CSV)
 5. Bulk-upload ke Adobe Stock & Shutterstock — metadata auto-fill dari CSV
+
+---
+
+## Renderer lokal vs Veo
+
+| Aspek        | Render Lokal (default)                  | Render Veo (opsional)               |
+|--------------|-----------------------------------------|-------------------------------------|
+| Biaya        | **Gratis**                              | ~$0.35–$0.50 / detik (~$3–5 per 8s) |
+| Internet     | Tidak butuh                             | Butuh                               |
+| API key      | Tidak butuh                             | Butuh Gemini API + billing          |
+| Kualitas     | Abstract motion graphics (broadcast-style) | Photoreal AI                     |
+| Subject      | Subject text dipakai untuk seed/palette — tidak ada bentuk literal | Mengikuti subject text |
+| Cocok untuk  | Loops, backgrounds, transitions, abstract VJ | Hero shots, narrative clips     |
+| Output       | MP4 (h264, yuv420p) sesuai aspect ratio | MP4 dari Veo                        |
+
+Untuk produksi stock video, **mayoritas asset yang laku di Adobe Stock & Shutterstock adalah abstract motion graphics** — yang justru lebih cocok dirender pakai mode lokal (gratis & predictable) daripada Veo (mahal & non-deterministik).
 
 ---
 

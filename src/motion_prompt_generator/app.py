@@ -154,17 +154,26 @@ class App(ctk.CTk):
         )
         self.enhance_btn.grid(row=0, column=1, padx=(4, 0), pady=(0, 4), sticky="ew")
 
-        self.render_btn = ctk.CTkButton(
-            actions, text="Render Video (Veo) — billed", command=self.on_render_video,
-            height=40, fg_color="#dc2626", hover_color="#b91c1c"
+        self.render_local_btn = ctk.CTkButton(
+            actions, text="Render Video (Local) — free, offline",
+            command=self.on_render_local, height=40,
+            fg_color="#16a34a", hover_color="#15803d",
+            font=ctk.CTkFont(size=14, weight="bold"),
         )
-        self.render_btn.grid(row=1, column=0, columnspan=2, pady=(0, 4), sticky="ew")
+        self.render_local_btn.grid(row=1, column=0, columnspan=2, pady=(0, 4), sticky="ew")
+
+        self.render_btn = ctk.CTkButton(
+            actions, text="Render Video (Veo, paid) — advanced",
+            command=self.on_render_video, height=32,
+            fg_color="#7f1d1d", hover_color="#991b1b",
+        )
+        self.render_btn.grid(row=2, column=0, columnspan=2, pady=(0, 4), sticky="ew")
 
         self.settings_btn = ctk.CTkButton(
             actions, text="Settings (API Key & Models)", command=self.on_open_settings, height=32,
             fg_color="transparent", border_width=1, border_color="#444"
         )
-        self.settings_btn.grid(row=2, column=0, columnspan=2, sticky="ew")
+        self.settings_btn.grid(row=3, column=0, columnspan=2, sticky="ew")
 
     def _add_optionmenu(
         self, parent: ctk.CTkScrollableFrame, row_start: int, label: str,
@@ -490,6 +499,62 @@ class App(ctk.CTk):
         cfg_store.save(self._cfg)
         self.status_var.set("Settings saved.")
 
+    # ----- Local procedural render (no API) -------------------------------------
+
+    def on_render_local(self) -> None:
+        """Render an MP4 using the offline procedural motion-graphics engine."""
+        cfg = self._read_form()
+        if not cfg.subject.strip():
+            messagebox.showwarning("Missing input", "Subject is required.")
+            return
+        self._persist_inputs(cfg)
+
+        default_name = f"motion_{cfg.subject.replace(' ', '_')[:40] or 'clip'}.mp4"
+        out_path = filedialog.asksaveasfilename(
+            title="Save rendered MP4 (local)",
+            defaultextension=".mp4",
+            initialfile=default_name,
+            filetypes=[("MP4 video", "*.mp4"), ("All files", "*.*")],
+        )
+        if not out_path:
+            return
+
+        self.render_local_btn.configure(state="disabled")
+        self.render_btn.configure(state="disabled")
+        self.generate_btn.configure(state="disabled")
+        self.enhance_btn.configure(state="disabled")
+        self.status_var.set(
+            f"Local render: {cfg.style} / {cfg.motion} @ {cfg.fps} fps, {cfg.duration_seconds}s…"
+        )
+
+        def _progress(msg: str, frac: float) -> None:
+            self.after(0, lambda m=msg, f=frac: self.status_var.set(
+                f"Local render: {m}  [{int(f * 100)}%]"
+            ))
+
+        def _worker() -> None:
+            try:
+                from .motion_renderer import render_motion
+
+                saved = render_motion(cfg, out_path, on_progress=_progress)
+                self.after(0, lambda p=saved: self._on_local_render_done(p, None))
+            except Exception as exc:  # noqa: BLE001
+                self.after(0, lambda exc=exc: self._on_local_render_done(None, exc))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_local_render_done(self, path: Path | None, error: Exception | None) -> None:
+        self.render_local_btn.configure(state="normal")
+        self.render_btn.configure(state="normal")
+        self.generate_btn.configure(state="normal")
+        self.enhance_btn.configure(state="normal")
+        if error:
+            self.status_var.set(f"Local render failed: {error}")
+            messagebox.showerror("Local render failed", str(error))
+            return
+        self.status_var.set(f"Local render saved: {path}")
+        messagebox.showinfo("Render complete", f"Saved video to:\n{path}")
+
     # ----- Veo video render ------------------------------------------------------
 
     def on_render_video(self) -> None:
@@ -540,6 +605,7 @@ class App(ctk.CTk):
         aspect = cfg_snap.get("aspect_ratio", "16:9")
 
         self.render_btn.configure(state="disabled")
+        self.render_local_btn.configure(state="disabled")
         self.generate_btn.configure(state="disabled")
         self.enhance_btn.configure(state="disabled")
         self.status_var.set(f"Veo: submitting {duration}s render…")
@@ -567,6 +633,7 @@ class App(ctk.CTk):
 
     def _on_render_done(self, path: Path | None, error: Exception | None) -> None:
         self.render_btn.configure(state="normal")
+        self.render_local_btn.configure(state="normal")
         self.generate_btn.configure(state="normal")
         self.enhance_btn.configure(state="normal")
         if error:
