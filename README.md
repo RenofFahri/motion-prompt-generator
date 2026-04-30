@@ -14,8 +14,9 @@ Desktop GUI app (Python + CustomTkinter) untuk **generate prompt motion graphics
 - **Tool-aware**: prompt otomatis disesuaikan untuk Veo / Runway Gen-3 / Pika / Kling / Sora / Generic
 - **Stock-safe modifiers**: otomatis tambahkan "no text, no logos, no faces, seamlessly loopable, 16:9" supaya video lolos review Adobe Stock & Shutterstock
 - **Stock metadata**: title, description, keywords (sampai 40+), kategori — **export langsung ke CSV format Adobe Stock & Shutterstock**
-- **Optional Gemini AI enhancement**: rewrite prompt jadi versi yang lebih kaya & beragam (butuh API key gratis dari Google AI Studio)
-- **100% offline by default** — Gemini hanya dipakai kalau kamu enable
+- **Optional Gemini AI enhancement**: rewrite prompt jadi versi yang lebih kaya & beragam (butuh API key gratis dari Google AI Studio). Mendukung **Gemini 3 Flash**, **Gemini 3.1 Pro**, Gemini 2.5 series.
+- **Optional Veo video render**: tombol **Render Video (Veo)** memanggil Veo (`veo-3.1-generate-preview` / `veo-3.0-generate` / `veo-2.0-generate-001`) langsung dari app dan menyimpan MP4 ke folder pilihanmu. **Berbayar** — perkiraan $0.35–$0.50 per detik video.
+- **100% offline by default** — Gemini & Veo hanya dipakai kalau kamu enable
 - **Negative prompt** otomatis: anti low-quality, watermark, distorted faces, flicker
 - **Persistent settings**: form terakhir, API key, theme di-remember
 - **Dark / Light / System mode**
@@ -34,7 +35,7 @@ Desktop GUI app (Python + CustomTkinter) untuk **generate prompt motion graphics
 git clone https://github.com/RenofFahri/motion-prompt-generator.git
 cd motion-prompt-generator
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -e ".[ai]"                              # ".[ai]" = include google-generativeai
+pip install -e ".[ai]"                              # ".[ai]" = include google-genai (Gemini + Veo SDK)
 motion-prompt-generator                              # atau:  python -m motion_prompt_generator
 ```
 
@@ -73,11 +74,20 @@ pip install -e .
 
 ---
 
-## Gemini API key (untuk AI Enhance)
+## Gemini API key (untuk AI Enhance & Veo render)
 
 1. Buka [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) → **Create API key** (gratis)
-2. Di app klik **Settings (API Key)** → paste → **Save**
+2. Di app klik **Settings (API Key & Models)** → paste → pilih model Gemini & Veo → **Save**
 3. Sekarang tombol **AI Enhance (Gemini)** aktif
+4. Untuk **Render Video (Veo)** kamu juga perlu **enable billing** di Google AI Studio. Veo dipanggil pakai key yang sama, tapi setiap render menagih akun-mu (~$0.35–$0.50/detik). App akan menampilkan estimasi biaya sebelum mulai render dan minta konfirmasi.
+
+### Model yang didukung
+
+**Gemini text (AI Enhance):**
+`gemini-3.1-pro-preview` · `gemini-3-flash-preview` · `gemini-3.1-flash-lite-preview` · `gemini-2.5-pro` · `gemini-2.5-flash` · `gemini-2.5-flash-lite` · `gemini-2.0-flash` · `gemini-2.0-flash-lite`
+
+**Veo video render:**
+`veo-3.1-generate-preview` (default, kualitas tertinggi) · `veo-3.0-generate` · `veo-2.0-generate-001` (paling murah)
 
 Key disimpan **lokal** di:
 - Linux: `~/.config/motion-prompt-generator/config.json`

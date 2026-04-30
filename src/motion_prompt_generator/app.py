@@ -154,11 +154,17 @@ class App(ctk.CTk):
         )
         self.enhance_btn.grid(row=0, column=1, padx=(4, 0), pady=(0, 4), sticky="ew")
 
+        self.render_btn = ctk.CTkButton(
+            actions, text="Render Video (Veo) — billed", command=self.on_render_video,
+            height=40, fg_color="#dc2626", hover_color="#b91c1c"
+        )
+        self.render_btn.grid(row=1, column=0, columnspan=2, pady=(0, 4), sticky="ew")
+
         self.settings_btn = ctk.CTkButton(
-            actions, text="Settings (API Key)", command=self.on_open_settings, height=32,
+            actions, text="Settings (API Key & Models)", command=self.on_open_settings, height=32,
             fg_color="transparent", border_width=1, border_color="#444"
         )
-        self.settings_btn.grid(row=1, column=0, columnspan=2, sticky="ew")
+        self.settings_btn.grid(row=2, column=0, columnspan=2, sticky="ew")
 
     def _add_optionmenu(
         self, parent: ctk.CTkScrollableFrame, row_start: int, label: str,
@@ -484,6 +490,92 @@ class App(ctk.CTk):
         cfg_store.save(self._cfg)
         self.status_var.set("Settings saved.")
 
+    # ----- Veo video render ------------------------------------------------------
+
+    def on_render_video(self) -> None:
+        """Render the first generated prompt to an MP4 via Veo (paid)."""
+        if not self._results:
+            messagebox.showwarning(
+                "Nothing to render",
+                "Generate at least one prompt first, then click Render Video.",
+            )
+            return
+        if not self._cfg.gemini_api_key:
+            messagebox.showinfo(
+                "Gemini API key required",
+                "Veo uses your Gemini API key. Open Settings and paste your key.\n\n"
+                "Veo also requires billing to be enabled on your Google AI Studio account.",
+            )
+            return
+
+        result = self._results[0]
+        cfg_snap = result.config_snapshot
+        duration = max(1, min(int(self._cfg.veo_render_duration or 8), 60))
+        est_low = duration * 0.35
+        est_high = duration * 0.50
+        confirm = messagebox.askyesno(
+            "Confirm Veo render — billed",
+            f"This will render prompt #1 to MP4 using {self._cfg.veo_model}.\n\n"
+            f"Duration: {duration}s\n"
+            f"Aspect:   {cfg_snap.get('aspect_ratio', '16:9')}\n"
+            f"Estimated cost: ${est_low:.2f}–${est_high:.2f}\n\n"
+            "Your Google AI Studio account will be billed. Continue?",
+        )
+        if not confirm:
+            return
+
+        default_name = f"motion_{cfg_snap.get('subject', 'clip').replace(' ', '_')[:40]}.mp4"
+        out_path = filedialog.asksaveasfilename(
+            title="Save rendered MP4",
+            defaultextension=".mp4",
+            initialfile=default_name,
+            filetypes=[("MP4 video", "*.mp4"), ("All files", "*.*")],
+        )
+        if not out_path:
+            return
+
+        prompt_text = result.prompt
+        veo_model = self._cfg.veo_model
+        api_key = self._cfg.gemini_api_key
+        aspect = cfg_snap.get("aspect_ratio", "16:9")
+
+        self.render_btn.configure(state="disabled")
+        self.generate_btn.configure(state="disabled")
+        self.enhance_btn.configure(state="disabled")
+        self.status_var.set(f"Veo: submitting {duration}s render…")
+
+        def _progress(msg: str) -> None:
+            self.after(0, lambda m=msg: self.status_var.set(f"Veo: {m}"))
+
+        def _worker() -> None:
+            try:
+                from .ai import VeoClient
+
+                client = VeoClient(api_key=api_key, model=veo_model)
+                saved = client.render(
+                    prompt=prompt_text,
+                    output_path=out_path,
+                    duration_seconds=duration,
+                    aspect_ratio=aspect,
+                    on_progress=_progress,
+                )
+                self.after(0, lambda p=saved: self._on_render_done(p, None))
+            except Exception as exc:  # noqa: BLE001
+                self.after(0, lambda exc=exc: self._on_render_done(None, exc))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_render_done(self, path: Path | None, error: Exception | None) -> None:
+        self.render_btn.configure(state="normal")
+        self.generate_btn.configure(state="normal")
+        self.enhance_btn.configure(state="normal")
+        if error:
+            self.status_var.set(f"Veo render failed: {error}")
+            messagebox.showerror("Veo render failed", str(error))
+            return
+        self.status_var.set(f"Veo render saved: {path}")
+        messagebox.showinfo("Render complete", f"Saved video to:\n{path}")
+
 
 class SettingsDialog(ctk.CTkToplevel):
     """Modal-ish settings window for Gemini API key and appearance mode."""
@@ -491,12 +583,20 @@ class SettingsDialog(ctk.CTkToplevel):
     def __init__(self, master: App, cfg, on_save) -> None:
         super().__init__(master)
         self.title("Settings")
-        self.geometry("560x340")
+        self.geometry("600x520")
         self.transient(master)
         self.grab_set()
         self.resizable(False, False)
         self._cfg = cfg
         self._on_save = on_save
+
+        try:
+            from .ai import GEMINI_TEXT_MODELS, VEO_VIDEO_MODELS
+            text_models = list(GEMINI_TEXT_MODELS)
+            veo_models = list(VEO_VIDEO_MODELS)
+        except Exception:
+            text_models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"]
+            veo_models = ["veo-3.1-generate-preview", "veo-2.0-generate-001"]
 
         self.grid_columnconfigure(0, weight=1)
 
@@ -511,31 +611,49 @@ class SettingsDialog(ctk.CTkToplevel):
         ctk.CTkLabel(
             self, anchor="w", justify="left", text_color="#9ca3af",
             text="Stored locally at ~/.config/motion-prompt-generator/config.json.\n"
-                 "Get a free key: https://aistudio.google.com/app/apikey",
+                 "Get a free key: https://aistudio.google.com/app/apikey  ·  "
+                 "Veo requires billing enabled.",
             font=ctk.CTkFont(size=11),
         ).grid(row=2, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
 
-        ctk.CTkLabel(self, text="Gemini model", anchor="w").grid(
+        ctk.CTkLabel(self, text="Gemini text model (AI Enhance)", anchor="w").grid(
             row=3, column=0, padx=PADX, pady=(PADY, 2), sticky="ew")
-        self.model_var = tk.StringVar(value=cfg.gemini_model)
-        try:
-            from .ai import GeminiClient
-            models = GeminiClient.list_models()
-        except Exception:
-            models = ["gemini-2.0-flash"]
-        ctk.CTkOptionMenu(self, variable=self.model_var, values=models).grid(
+        self.model_var = tk.StringVar(
+            value=cfg.gemini_model if cfg.gemini_model in text_models else text_models[0]
+        )
+        ctk.CTkOptionMenu(self, variable=self.model_var, values=text_models).grid(
             row=4, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
 
-        ctk.CTkLabel(self, text="Appearance", anchor="w").grid(
+        ctk.CTkLabel(self, text="Veo model (video render)", anchor="w").grid(
             row=5, column=0, padx=PADX, pady=(PADY, 2), sticky="ew")
+        self.veo_var = tk.StringVar(
+            value=cfg.veo_model if cfg.veo_model in veo_models else veo_models[0]
+        )
+        ctk.CTkOptionMenu(self, variable=self.veo_var, values=veo_models).grid(
+            row=6, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
+
+        ctk.CTkLabel(self, text="Veo render duration (seconds)  ·  ~$0.35–$0.50/s",
+                     anchor="w").grid(row=7, column=0, padx=PADX, pady=(PADY, 2), sticky="ew")
+        self.duration_var = tk.IntVar(value=cfg.veo_render_duration or 8)
+        self.duration_label = ctk.CTkLabel(self, text=f"{self.duration_var.get()} s",
+                                           anchor="w", text_color="#9ca3af")
+        self.duration_label.grid(row=8, column=0, padx=PADX, sticky="ew")
+        ctk.CTkSlider(
+            self, from_=2, to=30, number_of_steps=28,
+            command=lambda v: (self.duration_var.set(int(v)),
+                               self.duration_label.configure(text=f"{int(v)} s")),
+        ).grid(row=9, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
+
+        ctk.CTkLabel(self, text="Appearance", anchor="w").grid(
+            row=10, column=0, padx=PADX, pady=(PADY, 2), sticky="ew")
         self.appearance_var = tk.StringVar(value=cfg.appearance_mode)
         ctk.CTkOptionMenu(
             self, variable=self.appearance_var, values=["dark", "light", "system"],
             command=lambda v: ctk.set_appearance_mode(v),
-        ).grid(row=6, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
+        ).grid(row=11, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
 
         btns = ctk.CTkFrame(self, fg_color="transparent")
-        btns.grid(row=7, column=0, padx=PADX, pady=PADX, sticky="ew")
+        btns.grid(row=12, column=0, padx=PADX, pady=PADX, sticky="ew")
         btns.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkButton(btns, text="Cancel", command=self.destroy,
                       fg_color="transparent", border_width=1, border_color="#444").grid(
@@ -546,6 +664,8 @@ class SettingsDialog(ctk.CTkToplevel):
     def _save(self) -> None:
         self._cfg.gemini_api_key = self.key_entry.get().strip()
         self._cfg.gemini_model = self.model_var.get()
+        self._cfg.veo_model = self.veo_var.get()
+        self._cfg.veo_render_duration = int(self.duration_var.get())
         self._cfg.appearance_mode = self.appearance_var.get()
         self._on_save()
         self.destroy()

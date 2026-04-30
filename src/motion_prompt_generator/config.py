@@ -16,7 +16,9 @@ from pathlib import Path
 @dataclass
 class AppConfig:
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-3-flash-preview"
+    veo_model: str = "veo-3.1-generate-preview"
+    veo_render_duration: int = 8
     last_subject: str = ""
     last_style: str = "3D"
     last_motion: str = "Slow Rotation"
