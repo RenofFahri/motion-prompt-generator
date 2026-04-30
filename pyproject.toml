@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "motion-prompt-generator"
+version = "0.1.0"
+description = "Desktop app to generate AI motion graphics video prompts ready for Veo, Runway, Pika, Kling, Sora — with stock-platform metadata helpers for Adobe Stock & Shutterstock."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Renof Fahri Prasetyo", email = "renoffahriprasetyo@gmail.com" }]
+keywords = ["motion-graphics", "ai", "prompt-generator", "adobe-stock", "shutterstock", "veo", "runway", "pika"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video",
+]
+dependencies = [
+    "customtkinter>=5.2.2",
+    "pyperclip>=1.9.0",
+]
+
+[project.optional-dependencies]
+ai = ["google-generativeai>=0.8.0"]
+dev = ["pytest>=8.0", "ruff>=0.6.0"]
+
+[project.scripts]
+motion-prompt-generator = "motion_prompt_generator.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/RenofFahri/motion-prompt-generator"
+Issues = "https://github.com/RenofFahri/motion-prompt-generator/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
