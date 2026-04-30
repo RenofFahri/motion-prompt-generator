@@ -705,11 +705,13 @@ class SettingsDialog(ctk.CTkToplevel):
         self.duration_label = ctk.CTkLabel(self, text=f"{self.duration_var.get()} s",
                                            anchor="w", text_color="#9ca3af")
         self.duration_label.grid(row=8, column=0, padx=PADX, sticky="ew")
-        ctk.CTkSlider(
+        self._duration_slider = ctk.CTkSlider(
             self, from_=2, to=30, number_of_steps=28,
             command=lambda v: (self.duration_var.set(int(v)),
                                self.duration_label.configure(text=f"{int(v)} s")),
-        ).grid(row=9, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
+        )
+        self._duration_slider.set(self.duration_var.get())
+        self._duration_slider.grid(row=9, column=0, padx=PADX, pady=(0, PADY), sticky="ew")
 
         ctk.CTkLabel(self, text="Appearance", anchor="w").grid(
             row=10, column=0, padx=PADX, pady=(PADY, 2), sticky="ew")
